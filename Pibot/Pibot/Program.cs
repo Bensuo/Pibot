@@ -28,7 +28,7 @@ namespace Pibot
             Bot.OnReceiveError += BotOnReceiveError;
 
             var me = Bot.GetMeAsync().Result;
-
+            
             Console.Title = me.Username;
 
             Bot.StartReceiving();
@@ -85,9 +85,20 @@ namespace Pibot
             Console.WriteLine(message.Text);
             if (message == null || message.Type != MessageType.TextMessage) return;
 
-            if (message.Text.ToLower().Contains("butts"))
+            if (message.Text.StartsWith("@Pibot"))
             {
-                await Bot.SendTextMessageAsync(message.Chat.Id, "I enjoy big butts and frankly cannot lie about it!");
+                string msg = message.Text.ToLower();
+                if (msg.Contains("butts"))
+                {
+                    
+                    await Bot.SendTextMessageAsync(message.Chat.Id, String.Format("@{0} {1}, I enjoy big butts and frankly cannot lie about it!", message.From.FirstName, message.From.LastName));
+                    
+                }
+                else if (msg.Contains("awesome"))
+                {
+                    await Bot.SendStickerAsync(message.Chat.Id, "CAADBAAD-AEAAjjhGgABRCHT30HsyBgC");
+                }
+                
             }
         }
 
