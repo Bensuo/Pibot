@@ -91,7 +91,7 @@ namespace Pibot
                 if (msg.Contains("butts"))
                 {
                     
-                    await Bot.SendTextMessageAsync(message.Chat.Id, String.Format("@{0} {1}, I enjoy big butts and frankly cannot lie about it!", message.From.FirstName, message.From.LastName));
+                    await Bot.SendTextMessageAsync(message.Chat.Id, String.Format("{0}, I enjoy big butts and frankly cannot lie about it!", message.From.Username));
                     
                 }
                 else if (msg.Contains("awesome"))
