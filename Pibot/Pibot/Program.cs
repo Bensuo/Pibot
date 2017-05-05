@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Telegram.Bot;
@@ -17,25 +19,98 @@ namespace Pibot
     {
 
         private static readonly TelegramBotClient Bot = new TelegramBotClient("378850449:AAGV-GnSAslC5JOVpSX2l8G3W1AeDWnV8vY");
-
+        private static Dictionary<long, VirtualPet> pets;
+        private static int updateInterval = 10000;
+        private static DateTime lastUpdate;
         static void Main(string[] args)
         {
             Bot.OnCallbackQuery += BotOnCallbackQueryReceived;
             Bot.OnMessage += BotOnMessageReceived;
             Bot.OnMessageEdited += BotOnMessageReceived;
-            Bot.OnInlineQuery += BotOnInlineQueryReceived;
-            Bot.OnInlineResultChosen += BotOnChosenInlineResultReceived;
+            //Bot.OnInlineQuery += BotOnInlineQueryReceived;
+            //Bot.OnInlineResultChosen += BotOnChosenInlineResultReceived;
             Bot.OnReceiveError += BotOnReceiveError;
-
-            var me = Bot.GetMeAsync().Result;
+            lastUpdate = DateTime.Now;
             
+            var me = Bot.GetMeAsync().Result;
+            var t = new Timer(TimerCallback, null, 0, updateInterval);
             Console.Title = me.Username;
-
+            bool running = true;
+            string textInput = "";
+            string[] splitInput;
+            VirtualPet petToCheck;
+            pets = new Dictionary<long, VirtualPet>();
+            //pets.Add(0, new VirtualPet("Testy", 0));
             Bot.StartReceiving();
-            Console.ReadLine();
+            while (running)
+            {
+                textInput = Console.ReadLine();
+                splitInput = textInput.Split(' ');
+                if (splitInput[0] == "checkpet")
+                {
+                    bool petFound = false;
+                    foreach (var pet in pets)
+                    {
+                        if (pet.Value.Name == splitInput[1])
+                        {
+                            Console.Write("Name: " + pet.Value.Name);
+                            Console.Write("\tHunger: " + pet.Value.Hunger);
+                            Console.Write("\tHappiness: " + pet.Value.Happiness);
+                            TimeSpan timeTillUpdate = new TimeSpan(0,0, 0,0, updateInterval) - (DateTime.Now - lastUpdate);
+                            Console.Write("\tNextUpdate: " + timeTillUpdate.Minutes + "m" + timeTillUpdate.Seconds + "s");
+                            Console.Write("\n");
+                            petFound = true;
+                        }
+                    }
+                    if (!petFound)
+                    {
+                        Console.WriteLine("No pet found with that name!");
+                    }
+                }
+                else if (splitInput[0] == "quit")
+                {
+                    running = false;
+                }
+                else if (splitInput[0] == "status")
+                {
+                    TimeSpan timeTillUpdate = new TimeSpan(0, 0, 0, 0, updateInterval) - (DateTime.Now - lastUpdate);
+                    Console.WriteLine(String.Format("There are currently {0} active pets! The next update will occur in {1}m{2}s", pets.Count, timeTillUpdate.Minutes, timeTillUpdate.Seconds));
+                }
+                else
+                {
+                    Console.WriteLine("Command not recognised!");
+                }
+            }
             Bot.StopReceiving();
         }
 
+        private static async void TimerCallback(Object o)
+        {
+            foreach (var pet in pets)
+            {
+                string msg = "";
+                pet.Value.Update();
+                if (pet.Value.Happiness == 0 && pet.Value.Hunger == 10)
+                {
+                    msg = "I'm miserable and starving!";
+                }
+                else if (pet.Value.Happiness == 0)
+                {
+                    msg = "I'm miserable, play with me!";
+                }
+                else if (pet.Value.Hunger == 10)
+                {
+                    msg = "I'm starving, feed me!";
+                }
+                if (msg != "")
+                {
+                    await Bot.SendTextMessageAsync(pet.Value.ChatId, msg);
+                }
+            }
+
+            
+            lastUpdate = DateTime.Now;
+        }
         private static void BotOnReceiveError(object sender, ReceiveErrorEventArgs receiveErrorEventArgs)
         {
             Debugger.Break();
@@ -82,22 +157,66 @@ namespace Pibot
         private static async void BotOnMessageReceived(object sender, MessageEventArgs messageEventArgs)
         {
             var message = messageEventArgs.Message;
-            Console.WriteLine(message.Text);
+            
             if (message == null || message.Type != MessageType.TextMessage) return;
-
-            if (message.Text.StartsWith("@Pibot"))
+            Console.WriteLine(message.Text);
+            if (message.Text.StartsWith("@Pibot "))
             {
-                string msg = message.Text.ToLower();
-                if (msg.Contains("butts"))
+                string msg = message.Text;
+                msg = msg.Remove(0, 7);
+                string[] splitMessage = msg.Split(' ');
+                //Check for commands
+                if (splitMessage[0].Contains("!HatchEgg"))
                 {
-                    
-                    await Bot.SendTextMessageAsync(message.Chat.Id, String.Format("{0}, I enjoy big butts and frankly cannot lie about it!", message.From.Username));
-                    
+                    if (pets.ContainsKey(message.Chat.Id) == false)
+                    {
+                        if (splitMessage.Length > 1 && splitMessage[1] != "")
+                        {
+                            pets.Add(message.Chat.Id, new VirtualPet(splitMessage[1], message.Chat.Id));
+                            await Bot.SendTextMessageAsync(message.Chat.Id, splitMessage[1] + " was born! Hooray!");
+                        }
+                        else
+                        {
+                            await Bot.SendTextMessageAsync(message.Chat.Id,
+                                String.Format(
+                                    "{0}, You must give your virtual pet a name!\n Type @Pibot !HatchEgg namehere",
+                                    message.From.Username));
+                        }
+
+                    }
+                    else
+                    {
+                        await Bot.SendTextMessageAsync(message.Chat.Id,
+                            String.Format(
+                                "{0}, You already have a pet that loves you (probably)!",
+                                message.From.Username));
+                    }
                 }
-                else if (msg.Contains("awesome"))
+                else if (pets.ContainsKey(message.Chat.Id))
                 {
-                    await Bot.SendStickerAsync(message.Chat.Id, "CAADBAAD-AEAAjjhGgABRCHT30HsyBgC");
+                    if (splitMessage[0].Contains("!FeedPet"))
+                    {
+                        pets[message.Chat.Id].Feed(5);
+                    }
+                    else if (splitMessage[0].Contains("!PlayWithPet"))
+                    {
+                        pets[message.Chat.Id].PlayWith();
+                    }
                 }
+                else
+                {
+                    await Bot.SendTextMessageAsync(message.Chat.Id, "Sorry, I don't understand that command!");
+                }
+                //if (msg.Contains("butts"))
+                //{
+                    
+                //    await Bot.SendTextMessageAsync(message.Chat.Id, String.Format("{0}, I enjoy big butts and frankly cannot lie about it!", message.From.Username));
+                    
+                //}
+                //else if (msg.Contains("awesome"))
+                //{
+                //    await Bot.SendStickerAsync(message.Chat.Id, "CAADBAAD-AEAAjjhGgABRCHT30HsyBgC");
+                //}
                 
             }
         }
