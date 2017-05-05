@@ -31,16 +31,16 @@ namespace Pibot
             //Bot.OnInlineResultChosen += BotOnChosenInlineResultReceived;
             Bot.OnReceiveError += BotOnReceiveError;
             lastUpdate = DateTime.Now;
-            
             var me = Bot.GetMeAsync().Result;
-            var t = new Timer(TimerCallback, null, 0, updateInterval);
             Console.Title = me.Username;
             bool running = true;
             string textInput = "";
             string[] splitInput;
             VirtualPet petToCheck;
+            
+            var t = new Timer(TimerCallback, null, 0, updateInterval);
+            
             pets = new Dictionary<long, VirtualPet>();
-            //pets.Add(0, new VirtualPet("Testy", 0));
             Bot.StartReceiving();
             while (running)
             {
@@ -108,7 +108,7 @@ namespace Pibot
                 }
             }
 
-            
+
             lastUpdate = DateTime.Now;
         }
         private static void BotOnReceiveError(object sender, ReceiveErrorEventArgs receiveErrorEventArgs)
