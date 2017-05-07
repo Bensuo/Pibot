@@ -37,10 +37,10 @@ namespace Pibot
             string textInput = "";
             string[] splitInput;
             VirtualPet petToCheck;
-            
+            pets = new Dictionary<long, VirtualPet>();
             var t = new Timer(TimerCallback, null, 0, updateInterval);
             
-            pets = new Dictionary<long, VirtualPet>();
+            
             Bot.StartReceiving();
             while (running)
             {
@@ -173,7 +173,12 @@ namespace Pibot
                         if (splitMessage.Length > 1 && splitMessage[1] != "")
                         {
                             pets.Add(message.Chat.Id, new VirtualPet(splitMessage[1], message.Chat.Id));
-                            await Bot.SendTextMessageAsync(message.Chat.Id, splitMessage[1] + " was born! Hooray!");
+                            using (var fileStream = new FileStream(@"Assets/Robot/hatch.gif", FileMode.Open, FileAccess.Read, FileShare.Read))
+                            {
+                                var fts = new FileToSend("hatch.gif", fileStream);
+                                await Bot.SendVideoAsync(message.Chat.Id, fts, 1, splitMessage[1] + " was born! Hooray!");
+                            }
+
                         }
                         else
                         {
@@ -188,7 +193,7 @@ namespace Pibot
                     {
                         await Bot.SendTextMessageAsync(message.Chat.Id,
                             String.Format(
-                                "{0}, You already have a pet that loves you (probably)!",
+                                "@{0}, You already have a pet that loves you (probably)!",
                                 message.From.Username));
                     }
                 }
@@ -197,6 +202,11 @@ namespace Pibot
                     if (splitMessage[0].Contains("!FeedPet"))
                     {
                         pets[message.Chat.Id].Feed(5);
+                        using (var fileStream = new FileStream(@"Assets\Robot\feed.gif", FileMode.Open, FileAccess.Read, FileShare.Read))
+                        {
+                            var fts = new FileToSend("feed.gif", fileStream);
+                            await Bot.SendVideoAsync(message.Chat.Id, fts, 1, pets[message.Chat.Id].Name + " enjoyed the tasty red dot! Yum!");
+                        }
                     }
                     else if (splitMessage[0].Contains("!PlayWithPet"))
                     {
